@@ -3,59 +3,36 @@ provider "libvirt" {
 }
 
 module "cloudinit" {
-  source             = "./terraform/libvirt/images/cloudinit"
-  unique_name        = "sles12sp3_jeos_cloudinit.iso"
-  cloudinit_filename = "cloud_init_resize.cfg"
+  source      = "./terraform/libvirt/images/cloudinit"
+  unique_name = "gentoo_cloudinit.iso"
 }
 
-module "sles" {
-  source = "./terraform/libvirt/images/sles/"
+module "gentoo" {
+  source = "./terraform/libvirt/images/gentoo/"
 }
 
-variable "count" {
-  default = 4
-}
-
-resource "libvirt_volume" "osd_disks" {
-  pool   = "default"
-  format = "raw"
-  name   = "osd_${count.index}_data.raw"
-  size   = 100000000
-  count  = "${var.count}"
-}
-
-resource "libvirt_volume" "sles12sp3_disk" {
-  name           = "sles12sp3-${count.index}"
-  base_volume_id = "${module.sles.sles_12_sp3_id}"
+resource "libvirt_volume" "gento_disk" {
+  name           = "gento-${count.index}"
+  base_volume_id = "${module.gentoo.gentoo_id}"
   pool           = "default"
-  count          = "${var.count}"
-  size           = 5361393152
+  count          = 1
 }
 
-resource "libvirt_domain" "sles12sp3" {
-  name      = "sles12sp3-${count.index}"
+resource "libvirt_domain" "gentoo" {
+  name      = "gentoo-${count.index}"
   memory    = "1024"
   vcpu      = 1
-  count     = 4
+  count     = 1
   cloudinit = "${module.cloudinit.cloudinit_id}"
 
   network_interface {
-    network_name   = "default"
-    wait_for_lease = true
+    network_name = "default"
   }
 
-  // OS image
   disk {
-    volume_id = "${element(libvirt_volume.sles12sp3_disk.*.id, count.index)}"
+    volume_id = "${element(libvirt_volume.gentoo_disk.*.id, count.index)}"
   }
 
-  // DISK
-  disk {
-    volume_id = "${element(libvirt_volume.osd_disks.*.id, count.index)}"
-  }
-
-  # IMPORTANT
-  # you need to pass the console because the image is expecting it as kernel-param.
   console {
     type        = "pty"
     target_port = "0"
@@ -72,9 +49,5 @@ resource "libvirt_domain" "sles12sp3" {
     type        = "spice"
     listen_type = "address"
     autoport    = true
-  }
-
-  provisioner "local-exec" {
-    command = "echo ${self.network_interface.0.addresses.0} >> hosts.txt"
   }
 }

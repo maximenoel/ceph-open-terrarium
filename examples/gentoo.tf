@@ -3,24 +3,23 @@ provider "libvirt" {
 }
 
 module "cloudinit" {
-  source = "./terraform/libvirt/images/cloudinit"
+  source      = "./terraform/libvirt/images/cloudinit"
+  unique_name = "gentoo_cloudinit.iso"
 }
 
 module "gentoo" {
   source = "./terraform/libvirt/images/gentoo/"
 }
 
-// we create 4 hosts 
-
 resource "libvirt_volume" "gento_disk" {
-  name           = "gento20180921-${count.index}"
-  base_volume_id = "${module.gentoo.gentoo_20180921_id}"
+  name           = "gento-${count.index}"
+  base_volume_id = "${module.gentoo.gentoo_id}"
   pool           = "default"
   count          = 1
 }
 
-resource "libvirt_domain" "gentoo20180921" {
-  name      = "gentoo20180921-${count.index}"
+resource "libvirt_domain" "gentoo" {
+  name      = "gentoo-${count.index}"
   memory    = "1024"
   vcpu      = 1
   count     = 1
@@ -34,9 +33,6 @@ resource "libvirt_domain" "gentoo20180921" {
     volume_id = "${element(libvirt_volume.gentoo_disk.*.id, count.index)}"
   }
 
-  # IMPORTANT
-  # Ubuntu can hang if an isa-serial is not present at boot time.
-  # If you find your CPU 100% and never is available this is why
   console {
     type        = "pty"
     target_port = "0"
