@@ -8,4 +8,3 @@ resource "libvirt_volume" "gentoo_20180921_volume" {
   count  = "1"
   pool   = "${var.pool}"
 }
-
